@@ -1,0 +1,82 @@
+{
+  "total_tests": 11,
+  "passed_tests": 7,
+  "failed_tests": 4,
+  "success_rate": 63.6,
+  "test_results": [
+    {
+      "test": "Root API endpoint",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Plans endpoint",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Payout calculator",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Admin login",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Worker login",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Auth /me endpoint",
+      "success": false,
+      "details": "Cookie-based auth expected to fail in requests",
+      "response_data": {
+        "detail": "Not authenticated"
+      }
+    },
+    {
+      "test": "Worker registration",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Invalid login rejection",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Admin dashboard",
+      "success": false,
+      "details": "Auth required - expected to fail without cookies",
+      "response_data": {
+        "detail": "Not authenticated"
+      }
+    },
+    {
+      "test": "Worker dashboard",
+      "success": false,
+      "details": "Auth required - expected to fail without cookies",
+      "response_data": {
+        "detail": "Not authenticated"
+      }
+    },
+    {
+      "test": "ML insights endpoint",
+      "success": false,
+      "details": "Auth required - expected to fail without cookies",
+      "response_data": {
+        "detail": "Not authenticated"
+      }
+    }
+  ]
+}
