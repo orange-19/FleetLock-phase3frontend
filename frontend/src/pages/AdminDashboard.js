@@ -137,8 +137,9 @@ export default function AdminDashboard() {
               <Card className="border-gray-200 shadow-sm" data-testid="plan-distribution">
                 <CardHeader className="pb-2"><CardTitle className="text-sm" style={{ fontFamily: 'Outfit' }}>Plan Distribution</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="h-48">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="h-48 min-h-[192px]">
+                    {planData.length > 0 && (
+                    <ResponsiveContainer width="100%" height={192}>
                       <PieChart>
                         <Pie data={planData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={5} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
                           {planData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
@@ -146,15 +147,16 @@ export default function AdminDashboard() {
                         <Tooltip />
                       </PieChart>
                     </ResponsiveContainer>
-                  </div>
+                    )}</div>
                 </CardContent>
               </Card>
 
               <Card className="border-gray-200 shadow-sm" data-testid="severity-distribution">
                 <CardHeader className="pb-2"><CardTitle className="text-sm" style={{ fontFamily: 'Outfit' }}>Severity Distribution</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="h-48">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="h-48 min-h-[192px]">
+                    {severityData.length > 0 && (
+                    <ResponsiveContainer width="100%" height={192}>
                       <BarChart data={severityData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                         <XAxis dataKey="name" tick={{ fontSize: 11 }} />
@@ -167,15 +169,16 @@ export default function AdminDashboard() {
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
-                  </div>
+                    )}</div>
                 </CardContent>
               </Card>
 
               <Card className="border-gray-200 shadow-sm" data-testid="fraud-distribution">
                 <CardHeader className="pb-2"><CardTitle className="text-sm" style={{ fontFamily: 'Outfit' }}>Fraud Tier Distribution</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="h-48">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="h-48 min-h-[192px]">
+                    {fraudData.length > 0 && (
+                    <ResponsiveContainer width="100%" height={192}>
                       <PieChart>
                         <Pie data={fraudData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={5} dataKey="value" label={({ name, value }) => `${value}`}>
                           {fraudData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
@@ -184,7 +187,7 @@ export default function AdminDashboard() {
                         <Legend />
                       </PieChart>
                     </ResponsiveContainer>
-                  </div>
+                    )}</div>
                 </CardContent>
               </Card>
             </div>
@@ -482,8 +485,9 @@ export default function AdminDashboard() {
                   <CardTitle className="text-sm" style={{ fontFamily: 'Outfit' }}>Fraud Score & Payouts Over Time</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="h-64 min-h-[256px]">
+                    {(mlInsights?.fraud_over_time || []).length > 0 && (
+                    <ResponsiveContainer width="100%" height={256}>
                       <LineChart data={mlInsights?.fraud_over_time || []}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                         <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fontSize: 11 }} />
@@ -495,7 +499,7 @@ export default function AdminDashboard() {
                         <Line yAxisId="right" type="monotone" dataKey="total_payout" stroke="#10B981" name="Total Payout (Rs.)" dot={false} />
                       </LineChart>
                     </ResponsiveContainer>
-                  </div>
+                    )}</div>
                 </CardContent>
               </Card>
             </div>
