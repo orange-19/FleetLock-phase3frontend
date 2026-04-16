@@ -85,9 +85,9 @@ export default function InsurancePlans() {
               <p className="text-sm text-gray-500 mb-6">{p.description}</p>
 
               <div className="mb-6">
-                <span className="text-4xl font-bold text-[#022C22]" style={{ fontFamily: 'Outfit' }}>Rs. {p.premium_daily}</span>
-                <span className="text-sm text-gray-400">/day</span>
-                <p className="text-xs text-gray-400 mt-1">Rs. {p.premium_daily * 7}/week auto-deducted</p>
+                <span className="text-4xl font-bold text-[#022C22]" style={{ fontFamily: 'Outfit' }}>Rs. {p.premium_weekly}</span>
+                <span className="text-sm text-gray-400">/week</span>
+                <p className="text-xs text-gray-400 mt-1">Auto-deducted every Monday from platform payout</p>
               </div>
 
               <div className="space-y-3 mb-6">

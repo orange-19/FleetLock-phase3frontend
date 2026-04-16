@@ -318,7 +318,7 @@ async def seed_demo_data():
             "worker_id": user_id,
             "plan": plan,
             "status": "active",
-            "premium_daily": PLAN_PREMIUMS[plan],
+        "premium_weekly": PLAN_PREMIUMS[plan],
             "start_date": (datetime.now(timezone.utc) - timedelta(days=random.randint(1, 14))).isoformat(),
             "end_date": (datetime.now(timezone.utc) + timedelta(days=random.randint(1, 14))).isoformat(),
             "created_at": datetime.now(timezone.utc).isoformat()
@@ -533,7 +533,7 @@ async def subscribe(req: SubscribeRequest, request: Request):
         "worker_id": user["id"],
         "plan": plan,
         "status": "active",
-        "premium_daily": PLAN_PREMIUMS[plan],
+        "premium_weekly": PLAN_PREMIUMS[plan],
         "coverage_rate": COVERAGE_RATES[plan],
         "max_covered_days": PLAN_MAX_DAYS[plan],
         "start_date": now.isoformat(),
@@ -542,7 +542,7 @@ async def subscribe(req: SubscribeRequest, request: Request):
     }
     await db.subscriptions.insert_one(sub)
     await db.workers.update_one({"user_id": user["id"]}, {"$set": {"active_plan": plan}, "$inc": {"renewal_streak": 1}})
-    return {"message": f"Subscribed to {plan.capitalize()} plan", "plan": plan, "premium_daily": PLAN_PREMIUMS[plan]}
+    return {"message": f"Subscribed to {plan.upper()} plan", "plan": plan, "premium_weekly": PLAN_PREMIUMS[plan]}
 
 @api_router.post("/worker/claim")
 async def create_claim(req: ClaimCreateRequest, request: Request):
@@ -816,9 +816,9 @@ async def ml_insights(request: Request):
 async def get_plans():
     return {
         "plans": [
-            {"id": "level-1", "name": "Level 1", "level": 1, "premium_daily": 29, "coverage_rate": 0.40, "max_covered_days": 3, "target": "Part-time / Occasional", "description": "Basic protection for part-time delivery partners", "features": ["40% income coverage", "3 max covered days", "Weather disruptions", "Basic fraud protection"]},
-            {"id": "level-2", "name": "Level 2", "level": 2, "premium_daily": 59, "coverage_rate": 0.60, "max_covered_days": 5, "target": "Full-time Delivery Partner", "description": "Comprehensive protection for full-time riders", "features": ["60% income coverage", "5 max covered days", "All disruption types", "Advanced fraud detection", "Priority claim processing"], "recommended": True},
-            {"id": "level-3", "name": "Level 3", "level": 3, "premium_daily": 99, "coverage_rate": 0.80, "max_covered_days": 7, "target": "Power Users / High Earners", "description": "Maximum protection for power delivery partners", "features": ["80% income coverage", "7 max covered days", "All disruption types", "Premium fraud protection", "Express claim processing", "Loyalty bonus eligible"]},
+            {"id": "level-1", "name": "Level 1", "level": 1, "premium_weekly": 29, "coverage_rate": 0.40, "max_covered_days": 3, "target": "Part-time / Occasional", "description": "Basic protection for part-time delivery partners", "features": ["40% income coverage", "3 max covered days", "Weather disruptions", "Basic fraud protection"]},
+            {"id": "level-2", "name": "Level 2", "level": 2, "premium_weekly": 59, "coverage_rate": 0.60, "max_covered_days": 5, "target": "Full-time Delivery Partner", "description": "Comprehensive protection for full-time riders", "features": ["60% income coverage", "5 max covered days", "All disruption types", "Advanced fraud detection", "Priority claim processing"], "recommended": True},
+            {"id": "level-3", "name": "Level 3", "level": 3, "premium_weekly": 99, "coverage_rate": 0.80, "max_covered_days": 7, "target": "Power Users / High Earners", "description": "Maximum protection for power delivery partners", "features": ["80% income coverage", "7 max covered days", "All disruption types", "Premium fraud protection", "Express claim processing", "Loyalty bonus eligible"]},
         ]
     }
 

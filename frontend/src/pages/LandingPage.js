@@ -21,7 +21,7 @@ const features = [
   { icon: TrendingUp, title: "Earnings Floor Protection", desc: "We protect your actual income baseline, not a flat rate. Your 60-day trimmed mean earnings are your safety net." },
   { icon: CloudRain, title: "Real-time Weather Integration", desc: "OpenWeatherMap and IMD data feeds trigger claims when rainfall, AQI, or temperature cross thresholds." },
   { icon: Lock, title: "Anti-Fraud ML Engine", desc: "XGBoost + Random Forest ensemble with GPS, device, and behavioral signals. 99.5% detection rate." },
-  { icon: Users, title: "Built for Gig Workers", desc: "Weekly premiums from Rs. 29/day. Auto-deducted. UPI payouts within 4 hours." },
+  { icon: Users, title: "Built for Gig Workers", desc: "Weekly premiums from Rs. 29/week. Auto-deducted from platform payout. UPI payouts within 4 hours." },
   { icon: BarChart3, title: "ML-Powered Insights", desc: "Fraud scoring, disruption severity classification, and payout audit — all powered by trained models." },
 ];
 
@@ -148,7 +148,7 @@ export default function LandingPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {[
-              { step: "01", title: "Subscribe", desc: "Choose a plan starting at Rs. 29/day. Auto-deducted weekly." },
+              { step: "01", title: "Subscribe", desc: "Choose a plan starting at Rs. 29/week. Auto-deducted every Monday." },
               { step: "02", title: "We Monitor", desc: "Our ML models track weather, platform outages, and your earnings in real-time." },
               { step: "03", title: "Auto-Trigger", desc: "When a disruption is detected, claims are created automatically — zero paperwork." },
               { step: "04", title: "Get Paid", desc: "Verified payouts disbursed to your UPI within 4 hours." },
@@ -181,8 +181,8 @@ export default function LandingPage() {
                 <h3 className="text-xl font-bold text-[#022C22] mb-1" style={{ fontFamily: 'Outfit' }}>{p.name}</h3>
                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-4">Level {p.level} &middot; {p.target}</p>
                 <div className="mb-4">
-                  <span className="text-3xl font-bold text-[#022C22]" style={{ fontFamily: 'Outfit' }}>Rs. {p.premium_daily}</span>
-                  <span className="text-sm text-gray-400">/day</span>
+                  <span className="text-3xl font-bold text-[#022C22]" style={{ fontFamily: 'Outfit' }}>Rs. {p.premium_weekly}</span>
+                  <span className="text-sm text-gray-400">/week</span>
                 </div>
                 <ul className="space-y-2 mb-6">
                   {p.features?.map((f, i) => (

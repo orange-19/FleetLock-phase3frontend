@@ -227,7 +227,7 @@ export default function WorkerDashboard() {
                       <Badge className="bg-emerald-100 text-emerald-700 border-0">Active</Badge>
                     </div>
                     <div className="space-y-2 text-sm text-gray-500">
-                      <div className="flex justify-between"><span>Premium</span><span className="font-medium text-[#022C22]">Rs. {sub.premium_daily}/day</span></div>
+                      <div className="flex justify-between"><span>Premium</span><span className="font-medium text-[#022C22]">Rs. {sub.premium_weekly}/week</span></div>
                       <div className="flex justify-between"><span>Coverage</span><span className="font-medium text-[#022C22]">{(sub.coverage_rate || 0.6) * 100}%</span></div>
                       <div className="flex justify-between"><span>Expires</span><span className="font-medium text-[#022C22]">{sub.end_date?.slice(0, 10)}</span></div>
                     </div>
