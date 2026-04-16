@@ -16,7 +16,7 @@ export default function InsurancePlans() {
   const [loading, setLoading] = useState(false);
   const [subscribing, setSubscribing] = useState(null);
   const [calcIncome, setCalcIncome] = useState(700);
-  const [calcPlan, setCalcPlan] = useState("kavach");
+  const [calcPlan, setCalcPlan] = useState("level-2");
   const [calcSeverity, setCalcSeverity] = useState("medium");
   const [calcResult, setCalcResult] = useState(null);
 
@@ -138,9 +138,9 @@ export default function InsurancePlans() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="sahara">Sahara (40%)</SelectItem>
-                      <SelectItem value="kavach">Kavach (60%)</SelectItem>
-                      <SelectItem value="suraksha">Suraksha (80%)</SelectItem>
+                      <SelectItem value="level-1">Level 1 (40%)</SelectItem>
+                      <SelectItem value="level-2">Level 2 (60%)</SelectItem>
+                      <SelectItem value="level-3">Level 3 (80%)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -20,6 +20,14 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 
+from integrations.weather_client import WeatherClient, ZONE_COORDINATES
+from integrations.telematics_client import TelematicsClient
+from scheduler.weather_poller import get_cached_weather, update_cache, get_all_cached, poll_all_zones
+
+# Initialize integration clients
+weather_client = WeatherClient()
+telematics_client = TelematicsClient()
+
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
@@ -122,9 +130,9 @@ class ClaimActionRequest(BaseModel):
 # ─── ML Models (Simulated / Rule-Based) ───
 
 SEVERITY_MULTIPLIER_MAP = {"low": 0.75, "medium": 1.0, "high": 1.25}
-COVERAGE_RATES = {"sahara": 0.40, "kavach": 0.60, "suraksha": 0.80}
-PLAN_PREMIUMS = {"sahara": 29, "kavach": 59, "suraksha": 99}
-PLAN_MAX_DAYS = {"sahara": 3, "kavach": 5, "suraksha": 7}
+COVERAGE_RATES = {"level-1": 0.40, "level-2": 0.60, "level-3": 0.80}
+PLAN_PREMIUMS = {"level-1": 29, "level-2": 59, "level-3": 99}
+PLAN_MAX_DAYS = {"level-1": 3, "level-2": 5, "level-3": 7}
 
 INDIAN_CITIES = ["Mumbai", "Chennai", "Bengaluru", "Hyderabad", "Delhi", "Pune", "Kolkata", "Ahmedabad"]
 ZONES = ["North", "South", "East", "West", "Central"]
@@ -287,7 +295,7 @@ async def seed_demo_data():
         }
         result = await db.users.insert_one(user_doc)
         user_id = str(result.inserted_id)
-        plans = ["sahara", "kavach", "suraksha"]
+        plans = ["level-1", "level-2", "level-3"]
         plan = random.choice(plans)
         worker_doc = {
             "user_id": user_id,
@@ -423,7 +431,7 @@ async def register(req: RegisterRequest, response: Response):
     refresh = create_refresh_token(user_id)
     response.set_cookie(key="access_token", value=access, httponly=True, secure=False, samesite="lax", max_age=3600, path="/")
     response.set_cookie(key="refresh_token", value=refresh, httponly=True, secure=False, samesite="lax", max_age=604800, path="/")
-    return {"id": user_id, "email": email, "name": req.name, "role": user_doc["role"]}
+    return {"access_token": access, "user": {"id": user_id, "email": email, "name": req.name, "role": user_doc["role"]}}
 
 @api_router.post("/auth/login")
 async def login(req: LoginRequest, request: Request, response: Response):
@@ -451,7 +459,7 @@ async def login(req: LoginRequest, request: Request, response: Response):
     refresh = create_refresh_token(user_id)
     response.set_cookie(key="access_token", value=access, httponly=True, secure=False, samesite="lax", max_age=3600, path="/")
     response.set_cookie(key="refresh_token", value=refresh, httponly=True, secure=False, samesite="lax", max_age=604800, path="/")
-    return {"id": user_id, "email": email, "name": user["name"], "role": user["role"]}
+    return {"access_token": access, "user": {"id": user_id, "email": email, "name": user["name"], "role": user["role"]}}
 
 @api_router.post("/auth/logout")
 async def logout(response: Response):
@@ -518,7 +526,7 @@ async def subscribe(req: SubscribeRequest, request: Request):
         raise HTTPException(status_code=403, detail="Only workers can subscribe")
     plan = req.plan.lower()
     if plan not in PLAN_PREMIUMS:
-        raise HTTPException(status_code=400, detail="Invalid plan. Choose sahara, kavach, or suraksha")
+        raise HTTPException(status_code=400, detail="Invalid plan. Choose level-1, level-2, or level-3")
     await db.subscriptions.update_many({"worker_id": user["id"], "status": "active"}, {"$set": {"status": "expired"}})
     now = datetime.now(timezone.utc)
     sub = {
@@ -545,22 +553,34 @@ async def create_claim(req: ClaimCreateRequest, request: Request):
     if not worker.get("active_plan"):
         raise HTTPException(status_code=400, detail="No active subscription. Please subscribe first.")
     claim_count = await db.claims.count_documents({"worker_id": user["id"], "created_at": {"$gte": (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()}})
+    # Use TelematicsClient for GPS/device features
+    telem_features = telematics_client.generate_fraud_features(
+        zone_id=worker.get("zone", "Mumbai_Central"),
+        weather_severity="low",
+        fraud_type="genuine"
+    )
     fraud_input = {
         "claim_frequency_30d": claim_count,
-        "gps_drift_meters": round(random.uniform(3, 20), 1),
-        "speed_jump_kmh": round(random.uniform(0, 30), 1),
-        "route_deviation_pct": round(random.uniform(0, 0.15), 2),
-        "device_swap_count": 0,
-        "zone_entry_lag_mins": random.randint(0, 30),
+        "gps_drift_meters": telem_features["gps_drift_meters"],
+        "speed_jump_kmh": telem_features["speed_jump_kmh"],
+        "route_deviation_pct": telem_features["route_deviation_pct"],
+        "device_swap_count": telem_features["device_swap_count"],
+        "zone_entry_lag_mins": telem_features["zone_entry_lag_mins"],
         "avg_earnings_7d": worker.get("daily_income_avg", 700),
     }
     fraud_result = compute_fraud_score(fraud_input)
+    # Use WeatherClient for zone weather (cached or live)
+    zone_id = worker.get("zone", "Mumbai_Central")
+    weather_data = get_cached_weather(zone_id)
+    if not weather_data:
+        weather_data = await weather_client.get_weather_for_zone(zone_id)
+        update_cache(zone_id, weather_data)
     severity_features = {
-        "rainfall_mm": random.uniform(0, 120),
-        "temperature_celsius": random.uniform(25, 45),
-        "aqi_index": random.randint(30, 350),
-        "wind_speed_kmh": random.uniform(5, 90),
-        "flood_alert_flag": 1 if req.disruption_type == "flood" else 0,
+        "rainfall_mm": weather_data.get("rainfall_mm", random.uniform(0, 120)),
+        "temperature_celsius": weather_data.get("temperature_celsius", random.uniform(25, 45)),
+        "aqi_index": weather_data.get("aqi_index", random.randint(30, 350)),
+        "wind_speed_kmh": weather_data.get("wind_speed_kmh", random.uniform(5, 90)),
+        "flood_alert_flag": weather_data.get("flood_alert_flag", 1 if req.disruption_type == "flood" else 0),
     }
     severity_result = compute_disruption_severity(severity_features)
     payout_result = compute_payout(worker, {"disruption_type": req.disruption_type}, severity_result)
@@ -796,28 +816,74 @@ async def ml_insights(request: Request):
 async def get_plans():
     return {
         "plans": [
-            {"id": "sahara", "name": "Sahara", "level": 1, "premium_daily": 29, "coverage_rate": 0.40, "max_covered_days": 3, "target": "Part-time / Occasional", "description": "Basic protection for part-time delivery partners", "features": ["40% income coverage", "3 max covered days", "Weather disruptions", "Basic fraud protection"]},
-            {"id": "kavach", "name": "Kavach", "level": 2, "premium_daily": 59, "coverage_rate": 0.60, "max_covered_days": 5, "target": "Full-time Delivery Partner", "description": "Comprehensive protection for full-time riders", "features": ["60% income coverage", "5 max covered days", "All disruption types", "Advanced fraud detection", "Priority claim processing"], "recommended": True},
-            {"id": "suraksha", "name": "Suraksha", "level": 3, "premium_daily": 99, "coverage_rate": 0.80, "max_covered_days": 7, "target": "Power Users / High Earners", "description": "Maximum protection for power delivery partners", "features": ["80% income coverage", "7 max covered days", "All disruption types", "Premium fraud protection", "Express claim processing", "Loyalty bonus eligible"]},
+            {"id": "level-1", "name": "Level 1", "level": 1, "premium_daily": 29, "coverage_rate": 0.40, "max_covered_days": 3, "target": "Part-time / Occasional", "description": "Basic protection for part-time delivery partners", "features": ["40% income coverage", "3 max covered days", "Weather disruptions", "Basic fraud protection"]},
+            {"id": "level-2", "name": "Level 2", "level": 2, "premium_daily": 59, "coverage_rate": 0.60, "max_covered_days": 5, "target": "Full-time Delivery Partner", "description": "Comprehensive protection for full-time riders", "features": ["60% income coverage", "5 max covered days", "All disruption types", "Advanced fraud detection", "Priority claim processing"], "recommended": True},
+            {"id": "level-3", "name": "Level 3", "level": 3, "premium_daily": 99, "coverage_rate": 0.80, "max_covered_days": 7, "target": "Power Users / High Earners", "description": "Maximum protection for power delivery partners", "features": ["80% income coverage", "7 max covered days", "All disruption types", "Premium fraud protection", "Express claim processing", "Loyalty bonus eligible"]},
         ]
     }
 
 @api_router.get("/payout-calculator")
-async def payout_calculator(daily_income: float = 700, plan: str = "kavach", severity: str = "medium", tenure_days: int = 90):
+async def payout_calculator(daily_income: float = 700, plan: str = "level-2", severity: str = "medium", tenure_days: int = 90):
     worker_data = {"daily_income_avg": daily_income, "active_plan": plan, "tenure_days": tenure_days, "claim_accuracy_rate": 0.9, "platform_rating": 4.2}
     severity_result = {"severity_multiplier": SEVERITY_MULTIPLIER_MAP.get(severity, 1.0), "predicted_severity": severity}
     result = compute_payout(worker_data, {}, severity_result)
     return result
 
+# ─── WEATHER & INTEGRATION ROUTES ───
+@api_router.get("/weather/zones")
+async def get_weather_zones():
+    """Return all supported zones with coordinates."""
+    return {"zones": [{"id": z, "lat": c[0], "lon": c[1]} for z, c in ZONE_COORDINATES.items()]}
+
+@api_router.get("/weather/zone/{zone_id}")
+async def get_zone_weather(zone_id: str):
+    """Get current weather for a zone (cached or live)."""
+    cached = get_cached_weather(zone_id)
+    if cached:
+        return {**cached, "from_cache": True}
+    data = await weather_client.get_weather_for_zone(zone_id)
+    update_cache(zone_id, data)
+    return {**data, "from_cache": False}
+
+@api_router.get("/weather/all")
+async def get_all_weather():
+    """Get cached weather for all zones."""
+    cached = get_all_cached()
+    if not cached:
+        await poll_all_zones(weather_client)
+        cached = get_all_cached()
+    return {"zones": cached, "weather_api_active": weather_client.available}
+
+@api_router.post("/weather/poll")
+async def trigger_weather_poll(request: Request):
+    """Admin: force refresh weather for all zones."""
+    await require_admin(request)
+    results = await poll_all_zones(weather_client)
+    return {"message": f"Polled {len(results)} zones", "results": results}
+
+@api_router.get("/telematics/features/{zone_id}")
+async def get_telematics_features(zone_id: str, fraud_type: str = "genuine", severity: str = "low"):
+    """Generate telematics features for fraud model testing."""
+    features = telematics_client.generate_fraud_features(zone_id, severity, fraud_type)
+    return features
+
 @api_router.get("/")
 async def root():
-    return {"message": "FleetLock API v1.0", "status": "running"}
+    return {"message": "FleetLock API v2.0", "status": "running", "weather_api": weather_client.available}
 
 app.include_router(api_router)
 
+# CORS must be after router inclusion but that's fine in FastAPI/Starlette
+frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+cors_origins = [frontend_url, "http://localhost:3000"]
+# Also add any URL from CORS_ORIGINS env
+extra = os.environ.get("CORS_ORIGINS", "")
+if extra and extra != "*":
+    cors_origins.extend([o.strip() for o in extra.split(",") if o.strip()])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.environ.get("FRONTEND_URL", "http://localhost:3000"), "http://localhost:3000"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -210,19 +210,22 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Payout Formula */}
-      <section className="py-20 bg-[#022C22] text-white px-6 lg:px-12" data-testid="formula-section">
+      {/* CTA Banner */}
+      <section className="py-20 bg-[#022C22] text-white px-6 lg:px-12" data-testid="cta-section">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-xs tracking-[0.2em] uppercase font-bold text-emerald-400 mb-3">Transparent Formula</p>
-          <h2 className="text-3xl lg:text-4xl font-medium tracking-tight mb-8" style={{ fontFamily: 'Outfit' }}>Every payout is deterministic</h2>
-          <div className="bg-white/5 border border-white/10 rounded-xl p-8 mb-6">
-            <code className="text-lg lg:text-xl text-emerald-400 font-mono">
-              Payout = Base Daily Income x Coverage Rate x Severity x Loyalty
-            </code>
-          </div>
-          <p className="text-gray-400 text-sm max-w-xl mx-auto">
-            No discretion. No negotiation. No ambiguity. The formula is disclosed with every payout notification.
+          <p className="text-xs tracking-[0.2em] uppercase font-bold text-emerald-400 mb-3">Get Started Today</p>
+          <h2 className="text-3xl lg:text-4xl font-medium tracking-tight mb-4" style={{ fontFamily: 'Outfit' }}>Ready to protect your earnings?</h2>
+          <p className="text-gray-400 text-base max-w-xl mx-auto mb-8">
+            Join thousands of delivery partners who never worry about missed income from disruptions they can't control.
           </p>
+          <div className="flex flex-wrap gap-4 justify-center">
+            <Button size="lg" onClick={() => navigate("/register")} className="bg-emerald-500 hover:bg-emerald-600 text-white px-10 rounded-full" data-testid="cta-register">
+              Create Free Account <ArrowRight className="w-4 h-4 ml-1" />
+            </Button>
+            <Button size="lg" variant="outline" onClick={() => navigate("/plans")} className="border-white/30 text-white hover:bg-white/10 rounded-full" data-testid="cta-plans">
+              Compare Plans
+            </Button>
+          </div>
         </div>
       </section>
 

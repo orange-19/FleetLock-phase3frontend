@@ -12,7 +12,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Slider } from "../components/ui/slider";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { Shield, LogOut, Users, FileCheck, Wallet, AlertTriangle, Activity, Brain, CloudRain, Loader2, Check, XCircle, Clock, Zap } from "lucide-react";
+import { Shield, LogOut, Users, FileCheck, Wallet, AlertTriangle, Activity, Brain, CloudRain, Loader2, Check, XCircle, Clock, Zap, Thermometer, Wind, Droplets, RefreshCw } from "lucide-react";
 
 const COLORS = ["#10B981", "#F59E0B", "#E11D48", "#6366F1", "#06B6D4"];
 const TEXTURE_IMG = "https://static.prod-images.emergentagent.com/jobs/18a26aff-e818-4e89-b6f8-37be1997a1f5/images/37a5bbb88980b4232e3a67899e052194b571b5824cfa630060dbe6db318caee4.png";
@@ -23,6 +23,8 @@ export default function AdminDashboard() {
   const [data, setData] = useState(null);
   const [workers, setWorkers] = useState([]);
   const [mlInsights, setMlInsights] = useState(null);
+  const [weatherData, setWeatherData] = useState(null);
+  const [weatherPolling, setWeatherPolling] = useState(false);
   const [loading, setLoading] = useState(true);
   const [simLoading, setSimLoading] = useState(false);
   const [simResult, setSimResult] = useState(null);
@@ -39,14 +41,16 @@ export default function AdminDashboard() {
 
   const loadData = useCallback(async () => {
     try {
-      const [dash, wk, ml] = await Promise.all([
+      const [dash, wk, ml, wx] = await Promise.all([
         adminApi.dashboard(),
         adminApi.workers(),
         adminApi.mlInsights(),
+        adminApi.weatherAll().catch(() => ({ data: { zones: {} } })),
       ]);
       setData(dash.data);
       setWorkers(wk.data.workers || []);
       setMlInsights(ml.data);
+      setWeatherData(wx.data);
     } catch { /* pass */ }
     setLoading(false);
   }, []);
@@ -64,6 +68,16 @@ export default function AdminDashboard() {
       setSimResult({ error: e.response?.data?.detail || "Simulation failed" });
     }
     setSimLoading(false);
+  };
+
+  const handleWeatherPoll = async () => {
+    setWeatherPolling(true);
+    try {
+      await adminApi.weatherPoll();
+      const wx = await adminApi.weatherAll();
+      setWeatherData(wx.data);
+    } catch { /* pass */ }
+    setWeatherPolling(false);
   };
 
   const handleLogout = async () => { await logout(); navigate("/"); };
@@ -127,6 +141,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
             <TabsTrigger value="claims" data-testid="tab-claims">Claims</TabsTrigger>
             <TabsTrigger value="workers" data-testid="tab-workers">Workers</TabsTrigger>
+            <TabsTrigger value="weather" data-testid="tab-weather">Weather</TabsTrigger>
             <TabsTrigger value="simulator" data-testid="tab-simulator">Simulator</TabsTrigger>
             <TabsTrigger value="ml" data-testid="tab-ml">ML Insights</TabsTrigger>
           </TabsList>
@@ -326,6 +341,77 @@ export default function AdminDashboard() {
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Weather Tab */}
+          <TabsContent value="weather">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-[#022C22]" style={{ fontFamily: 'Outfit' }}>Live Weather Data</h3>
+                  <p className="text-sm text-gray-500">Real-time weather monitoring across all zones {weatherData?.weather_api_active ? <Badge className="bg-emerald-100 text-emerald-700 border-0 ml-2 text-xs">API Active</Badge> : <Badge className="bg-amber-100 text-amber-700 border-0 ml-2 text-xs">Fallback Mode</Badge>}</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleWeatherPoll} disabled={weatherPolling} data-testid="weather-poll-btn">
+                  {weatherPolling ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  Refresh All Zones
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Object.entries(weatherData?.zones || {}).map(([zoneId, wx]) => (
+                  <Card key={zoneId} className="border-gray-200 shadow-sm card-hover" data-testid={`weather-zone-${zoneId}`}>
+                    <CardContent className="p-5">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-[#022C22] text-sm" style={{ fontFamily: 'Outfit' }}>{zoneId.replace("_", " ")}</h4>
+                        <Badge variant="outline" className={`text-xs ${wx.source === 'openweathermap_live' ? 'border-emerald-300 text-emerald-700' : 'border-gray-300 text-gray-500'}`}>
+                          {wx.source === 'openweathermap_live' ? 'Live' : 'Simulated'}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex items-center gap-2">
+                          <Thermometer className="w-4 h-4 text-red-400" />
+                          <div>
+                            <p className="text-xs text-gray-500">Temp</p>
+                            <p className="text-sm font-bold">{wx.temperature_celsius}&deg;C</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Droplets className="w-4 h-4 text-blue-400" />
+                          <div>
+                            <p className="text-xs text-gray-500">Rain</p>
+                            <p className="text-sm font-bold">{wx.rainfall_mm}mm</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Wind className="w-4 h-4 text-gray-400" />
+                          <div>
+                            <p className="text-xs text-gray-500">Wind</p>
+                            <p className="text-sm font-bold">{wx.wind_speed_kmh} km/h</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CloudRain className="w-4 h-4 text-amber-400" />
+                          <div>
+                            <p className="text-xs text-gray-500">AQI</p>
+                            <p className={`text-sm font-bold ${wx.aqi_index > 200 ? 'text-red-600' : wx.aqi_index > 100 ? 'text-amber-600' : 'text-emerald-600'}`}>{wx.aqi_index}</p>
+                          </div>
+                        </div>
+                      </div>
+                      {wx.weather_condition && (
+                        <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
+                          {wx.weather_condition} {wx.flood_alert_flag ? <Badge className="bg-red-100 text-red-700 border-0 ml-1">Flood Alert</Badge> : null}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+                {Object.keys(weatherData?.zones || {}).length === 0 && (
+                  <div className="col-span-full text-center py-12 text-gray-400">
+                    <CloudRain className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">No weather data yet. Click "Refresh All Zones" to fetch.</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </TabsContent>
 
           {/* Simulator Tab */}
