@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { workerApi, publicApi } from "../lib/api";
+import { workerApi, formatApiError } from "../lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -9,8 +9,22 @@ import { Progress } from "../components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Shield, LogOut, TrendingUp, Wallet, FileCheck, Star, CloudRain, Zap, AlertTriangle, Check, Clock, XCircle, ArrowRight, Loader2 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Shield, LogOut, TrendingUp, Wallet, FileCheck, Star, CloudRain, Zap, Check, Clock, XCircle, ArrowRight, Loader2 } from "lucide-react";
+
+function formatDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString();
+}
+
+function formatShortDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(5);
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
 
 export default function WorkerDashboard() {
   const { user, logout } = useAuth();
@@ -42,7 +56,7 @@ export default function WorkerDashboard() {
       setClaimResult(res);
       loadDashboard();
     } catch (e) {
-      setClaimResult({ error: e.response?.data?.detail || "Failed to create claim" });
+      setClaimResult({ error: formatApiError(e.response?.data) || "Failed to create claim" });
     }
     setClaimLoading(false);
   };
@@ -56,7 +70,7 @@ export default function WorkerDashboard() {
   );
 
   const w = data?.worker || {};
-  const loyalty = data?.loyalty || {};
+  const loyalty = data?.loyalty || { loyalty_score: 0, loyalty_bonus: 1, breakdown: {} };
   const sub = data?.subscription;
   const earnings = (data?.earnings || []).slice(0, 14).reverse();
   const stats = data?.stats || {};
@@ -91,7 +105,7 @@ export default function WorkerDashboard() {
             { icon: TrendingUp, label: "Avg Daily Earnings", value: `Rs. ${w.daily_income_avg?.toFixed(0) || 0}`, color: "text-emerald-600" },
             { icon: Wallet, label: "Total Payouts", value: `Rs. ${stats.total_payouts?.toFixed(0) || 0}`, color: "text-blue-600" },
             { icon: FileCheck, label: "Claims Filed", value: stats.total_claims || 0, color: "text-amber-600" },
-            { icon: Star, label: "Loyalty Score", value: `${(loyalty.loyalty_score * 100).toFixed(0)}%`, color: "text-purple-600" },
+            { icon: Star, label: "Loyalty Score", value: `${((loyalty.loyalty_score || 0) * 100).toFixed(0)}%`, color: "text-purple-600" },
           ].map((s, i) => (
             <Card key={i} className="stat-card border-gray-200 shadow-sm" data-testid={`stat-${i}`}>
               <CardContent className="p-4 pl-5">
@@ -120,9 +134,9 @@ export default function WorkerDashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={earnings}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                      <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fontSize: 11 }} />
+                      <XAxis dataKey="date" tickFormatter={formatShortDate} tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip formatter={(v) => [`Rs. ${v.toFixed(0)}`, "Earnings"]} />
+                      <Tooltip formatter={(v) => [`Rs. ${Number(v || 0).toFixed(0)}`, "Earnings"]} />
                       <Bar dataKey="amount" fill="#10B981" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -193,7 +207,7 @@ export default function WorkerDashboard() {
                       <TableBody>
                         {(data?.payouts || []).map((p, i) => (
                           <TableRow key={i}>
-                            <TableCell className="text-sm">{p.created_at?.slice(0, 10)}</TableCell>
+                            <TableCell className="text-sm">{formatDate(p.created_at)}</TableCell>
                             <TableCell className="capitalize">{p.plan}</TableCell>
                             <TableCell><Badge variant="outline" className="capitalize">{p.status?.replace("_", " ")}</Badge></TableCell>
                             <TableCell className="text-right font-mono font-medium">Rs. {p.amount?.toFixed(0)}</TableCell>
@@ -229,7 +243,7 @@ export default function WorkerDashboard() {
                     <div className="space-y-2 text-sm text-gray-500">
                       <div className="flex justify-between"><span>Premium</span><span className="font-medium text-[#022C22]">Rs. {sub.premium_weekly}/week</span></div>
                       <div className="flex justify-between"><span>Coverage</span><span className="font-medium text-[#022C22]">{(sub.coverage_rate || 0.6) * 100}%</span></div>
-                      <div className="flex justify-between"><span>Expires</span><span className="font-medium text-[#022C22]">{sub.end_date?.slice(0, 10)}</span></div>
+                      <div className="flex justify-between"><span>Expires</span><span className="font-medium text-[#022C22]">{formatDate(sub.end_date)}</span></div>
                     </div>
                     <Button variant="outline" className="w-full mt-4 text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={() => navigate("/plans")} data-testid="change-plan-btn">
                       Change Plan <ArrowRight className="w-4 h-4 ml-1" />
@@ -255,10 +269,10 @@ export default function WorkerDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-center mb-4">
-                  <span className="text-4xl font-bold text-[#022C22]" style={{ fontFamily: 'Outfit' }}>{(loyalty.loyalty_score * 100).toFixed(0)}</span>
+                  <span className="text-4xl font-bold text-[#022C22]" style={{ fontFamily: 'Outfit' }}>{((loyalty.loyalty_score || 0) * 100).toFixed(0)}</span>
                   <span className="text-lg text-gray-400">/100</span>
                 </div>
-                <Progress value={loyalty.loyalty_score * 100} className="h-2 mb-4" />
+                <Progress value={(loyalty.loyalty_score || 0) * 100} className="h-2 mb-4" />
                 <div className="space-y-2">
                   {[
                     { label: "Active Days", value: loyalty.breakdown?.active_days_weight, weight: "40%" },

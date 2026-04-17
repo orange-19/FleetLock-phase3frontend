@@ -8,6 +8,26 @@ import { Label } from "../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Shield, ArrowLeft, Loader2 } from "lucide-react";
 
+const CITY_OPTIONS = [
+  { label: "Mumbai", value: "mumbai" },
+  { label: "Chennai", value: "chennai" },
+  { label: "Bengaluru", value: "bengaluru" },
+  { label: "Hyderabad", value: "hyderabad" },
+  { label: "Delhi", value: "delhi" },
+  { label: "Pune", value: "pune" },
+  { label: "Kolkata", value: "kolkata" },
+  { label: "Ahmedabad", value: "ahmedabad" },
+];
+
+const PLATFORM_OPTIONS = [
+  { label: "Zomato", value: "zomato" },
+  { label: "Swiggy", value: "swiggy" },
+  { label: "Blinkit", value: "blinkit" },
+  { label: "Zepto", value: "zepto" },
+  { label: "Amazon", value: "amazon" },
+  { label: "Dunzo", value: "dunzo" },
+];
+
 export default function AuthPage({ mode = "login" }) {
   const { login, register } = useAuth();
   const navigate = useNavigate();
@@ -19,6 +39,12 @@ export default function AuthPage({ mode = "login" }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (!isLogin && (!form.phone || !form.city || !form.platform)) {
+      setError("Phone, city, and platform are required for worker registration.");
+      return;
+    }
+
     setLoading(true);
     if (isLogin) {
       const res = await login(form.email, form.password);
@@ -28,7 +54,13 @@ export default function AuthPage({ mode = "login" }) {
         setError(res.error);
       }
     } else {
-      const res = await register(form);
+      const payload = {
+        ...form,
+        role: "worker",
+        city: (form.city || "").toLowerCase(),
+        platform: (form.platform || "").toLowerCase(),
+      };
+      const res = await register(payload);
       if (res.success) {
         navigate(res.data.role === "admin" ? "/admin" : "/dashboard");
       } else {
@@ -73,13 +105,12 @@ export default function AuthPage({ mode = "login" }) {
                   </div>
                   <div>
                     <Label htmlFor="role">Account Type</Label>
-                    <Select value={form.role} onValueChange={(v) => update("role", v)}>
+                    <Select value="worker" disabled>
                       <SelectTrigger data-testid="register-role">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="worker">Delivery Worker</SelectItem>
-                        <SelectItem value="admin">Administrator</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -96,11 +127,11 @@ export default function AuthPage({ mode = "login" }) {
                 <Input id="password" type="password" data-testid="auth-password" value={form.password} onChange={(e) => update("password", e.target.value)} placeholder="Enter password" required />
               </div>
 
-              {!isLogin && form.role === "worker" && (
+              {!isLogin && (
                 <>
                   <div>
                     <Label htmlFor="phone">Phone</Label>
-                    <Input id="phone" data-testid="register-phone" value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="+91 9876543210" />
+                    <Input id="phone" data-testid="register-phone" value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="+91 9876543210" required />
                   </div>
                   <div>
                     <Label htmlFor="city">City</Label>
@@ -109,8 +140,8 @@ export default function AuthPage({ mode = "login" }) {
                         <SelectValue placeholder="Select city" />
                       </SelectTrigger>
                       <SelectContent>
-                        {["Mumbai", "Chennai", "Bengaluru", "Hyderabad", "Delhi", "Pune", "Kolkata", "Ahmedabad"].map(c => (
-                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        {CITY_OPTIONS.map((city) => (
+                          <SelectItem key={city.value} value={city.value}>{city.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -122,8 +153,8 @@ export default function AuthPage({ mode = "login" }) {
                         <SelectValue placeholder="Select platform" />
                       </SelectTrigger>
                       <SelectContent>
-                        {["Zomato", "Swiggy", "Blinkit", "Zepto", "Amazon", "Dunzo"].map(p => (
-                          <SelectItem key={p} value={p}>{p}</SelectItem>
+                        {PLATFORM_OPTIONS.map((platform) => (
+                          <SelectItem key={platform.value} value={platform.value}>{platform.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

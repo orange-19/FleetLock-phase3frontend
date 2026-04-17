@@ -1,21 +1,34 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { adminApi } from "../lib/api";
+import { adminApi, formatApiError } from "../lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Slider } from "../components/ui/slider";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { Shield, LogOut, Users, FileCheck, Wallet, AlertTriangle, Activity, Brain, CloudRain, Loader2, Check, XCircle, Clock, Zap, Thermometer, Wind, Droplets, RefreshCw } from "lucide-react";
+import { Shield, LogOut, Users, FileCheck, Wallet, Brain, CloudRain, Loader2, Check, Clock, Zap, Thermometer, Wind, Droplets, RefreshCw } from "lucide-react";
 
 const COLORS = ["#10B981", "#F59E0B", "#E11D48", "#6366F1", "#06B6D4"];
 const TEXTURE_IMG = "https://static.prod-images.emergentagent.com/jobs/18a26aff-e818-4e89-b6f8-37be1997a1f5/images/37a5bbb88980b4232e3a67899e052194b571b5824cfa630060dbe6db318caee4.png";
+
+function formatDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString();
+}
+
+function formatShortDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(5);
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
@@ -25,6 +38,8 @@ export default function AdminDashboard() {
   const [mlInsights, setMlInsights] = useState(null);
   const [weatherData, setWeatherData] = useState(null);
   const [weatherPolling, setWeatherPolling] = useState(false);
+  const [claimActionLoading, setClaimActionLoading] = useState({});
+  const [claimActionError, setClaimActionError] = useState("");
   const [loading, setLoading] = useState(true);
   const [simLoading, setSimLoading] = useState(false);
   const [simResult, setSimResult] = useState(null);
@@ -65,7 +80,7 @@ export default function AdminDashboard() {
       setSimResult(res);
       loadData();
     } catch (e) {
-      setSimResult({ error: e.response?.data?.detail || "Simulation failed" });
+      setSimResult({ error: formatApiError(e.response?.data) || "Simulation failed" });
     }
     setSimLoading(false);
   };
@@ -73,11 +88,29 @@ export default function AdminDashboard() {
   const handleWeatherPoll = async () => {
     setWeatherPolling(true);
     try {
-      await adminApi.weatherPoll();
+      const zones = Object.keys(weatherData?.zones || {});
+      await adminApi.weatherPoll(zones.length ? { zones } : {});
       const wx = await adminApi.weatherAll();
       setWeatherData(wx.data);
     } catch { /* pass */ }
     setWeatherPolling(false);
+  };
+
+  const handleClaimAction = async (claimId, action) => {
+    setClaimActionError("");
+    setClaimActionLoading((prev) => ({ ...prev, [claimId]: action }));
+    try {
+      await adminApi.claimAction(claimId, { action });
+      await loadData();
+    } catch (e) {
+      setClaimActionError(formatApiError(e.response?.data) || "Failed to process claim action");
+    } finally {
+      setClaimActionLoading((prev) => {
+        const next = { ...prev };
+        delete next[claimId];
+        return next;
+      });
+    }
   };
 
   const handleLogout = async () => { await logout(); navigate("/"); };
@@ -226,7 +259,7 @@ export default function AdminDashboard() {
                   <TableBody>
                     {(data?.recent_claims || []).slice(0, 10).map((c, i) => (
                       <TableRow key={i}>
-                        <TableCell className="font-medium">{c.worker_name || c.worker_id?.slice(0, 8)}</TableCell>
+                        <TableCell className="font-medium">{c.worker_name || String(c.worker_id || "-").slice(0, 8)}</TableCell>
                         <TableCell className="capitalize">{c.disruption_type?.replace("_", " ")}</TableCell>
                         <TableCell className="text-sm text-gray-500">{c.zone}</TableCell>
                         <TableCell>
@@ -270,12 +303,13 @@ export default function AdminDashboard() {
                       <TableHead>Severity</TableHead>
                       <TableHead className="text-right">Payout</TableHead>
                       <TableHead>Date</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {(data?.recent_claims || []).map((c, i) => (
                       <TableRow key={i}>
-                        <TableCell className="font-medium">{c.worker_name || c.worker_id?.slice(0, 8)}</TableCell>
+                        <TableCell className="font-medium">{c.worker_name || String(c.worker_id || "-").slice(0, 8)}</TableCell>
                         <TableCell className="capitalize">{c.disruption_type?.replace("_", " ")}</TableCell>
                         <TableCell className="text-sm text-gray-500">{c.zone}</TableCell>
                         <TableCell>
@@ -295,11 +329,41 @@ export default function AdminDashboard() {
                           </span>
                         </TableCell>
                         <TableCell className="text-right font-mono">Rs. {c.payout_amount?.toFixed(0) || 0}</TableCell>
-                        <TableCell className="text-xs text-gray-400">{c.created_at?.slice(0, 10)}</TableCell>
+                        <TableCell className="text-xs text-gray-400">{formatDate(c.created_at)}</TableCell>
+                        <TableCell>
+                          {(c.status === "pending" || c.status === "flagged") ? (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                onClick={() => handleClaimAction(c.id, "approve")}
+                                disabled={Boolean(claimActionLoading[c.id])}
+                              >
+                                {claimActionLoading[c.id] === "approve" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Approve"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-red-300 text-red-700 hover:bg-red-50"
+                                onClick={() => handleClaimAction(c.id, "reject")}
+                                disabled={Boolean(claimActionLoading[c.id])}
+                              >
+                                {claimActionLoading[c.id] === "reject" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Reject"}
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">No actions</span>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+                {claimActionError && (
+                  <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
+                    {claimActionError}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -326,7 +390,7 @@ export default function AdminDashboard() {
                   <TableBody>
                     {workers.map((w, i) => (
                       <TableRow key={i}>
-                        <TableCell className="font-medium">{w.user_info?.name || w.user_id?.slice(0, 8)}</TableCell>
+                        <TableCell className="font-medium">{w.user_info?.name || String(w.user_id || "-").slice(0, 8)}</TableCell>
                         <TableCell><Badge variant="outline" className="text-xs">{w.platform}</Badge></TableCell>
                         <TableCell>{w.city}</TableCell>
                         <TableCell className="text-sm text-gray-500">{w.zone}</TableCell>
@@ -576,7 +640,7 @@ export default function AdminDashboard() {
                     <ResponsiveContainer width="100%" height={256}>
                       <LineChart data={mlInsights?.fraud_over_time || []}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                        <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fontSize: 11 }} />
+                        <XAxis dataKey="date" tickFormatter={formatShortDate} tick={{ fontSize: 11 }} />
                         <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
                         <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
                         <Tooltip />

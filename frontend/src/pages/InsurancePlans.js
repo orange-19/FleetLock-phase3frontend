@@ -19,12 +19,14 @@ export default function InsurancePlans() {
   const [calcPlan, setCalcPlan] = useState("level-2");
   const [calcSeverity, setCalcSeverity] = useState("medium");
   const [calcResult, setCalcResult] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     publicApi.plans().then(r => setPlans(r.data.plans)).catch(() => {});
   }, []);
 
   const handleSubscribe = async (planId) => {
+    setError("");
     if (!user || user === false) {
       navigate("/register");
       return;
@@ -34,7 +36,7 @@ export default function InsurancePlans() {
       await workerApi.subscribe({ plan: planId });
       navigate("/dashboard");
     } catch (e) {
-      alert(formatApiError(e.response?.data?.detail));
+      setError(formatApiError(e.response?.data));
     }
     setSubscribing(null);
   };
@@ -71,6 +73,11 @@ export default function InsurancePlans() {
           <p className="text-base text-gray-500 max-w-xl mx-auto">
             Weekly premiums matched to gig worker income cycles. Coverage starts immediately.
           </p>
+          {error && (
+            <div className="mt-4 inline-flex bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
         </div>
 
         {/* Plans Grid */}
