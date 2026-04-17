@@ -49,7 +49,7 @@ export default function AuthPage({ mode = "login" }) {
     if (isLogin) {
       const res = await login(form.email, form.password);
       if (res.success) {
-        navigate(res.data.role === "admin" ? "/admin" : "/dashboard");
+        navigate(res.data.role === "admin" ? "/admin" : (res.requiresKyc ? "/kyc-verification" : "/dashboard"));
       } else {
         setError(res.error);
       }
@@ -62,7 +62,7 @@ export default function AuthPage({ mode = "login" }) {
       };
       const res = await register(payload);
       if (res.success) {
-        navigate(res.data.role === "admin" ? "/admin" : "/dashboard");
+        navigate(res.data.role === "admin" ? "/admin" : (res.requiresKyc ? "/kyc-verification" : "/dashboard"));
       } else {
         setError(res.error);
       }
@@ -73,7 +73,7 @@ export default function AuthPage({ mode = "login" }) {
   const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   return (
-    <div className="min-h-screen bg-[#FAFAF9] flex items-center justify-center p-4" data-testid="auth-page">
+    <div className="min-h-screen bg-[#FAFAF9] flex items-center justify-center p-4 app-page-scale" data-testid="auth-page">
       <div className="w-full max-w-md">
         <Link to="/" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-emerald-600 mb-8 transition-colors" data-testid="back-to-home">
           <ArrowLeft className="w-4 h-4" /> Back to home

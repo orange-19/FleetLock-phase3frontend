@@ -47,6 +47,7 @@
   padding: 2px;
   background: linear-gradient(135deg, #10B981, #059669, #10B981);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
@@ -89,3 +90,50 @@
 .fraud-auto-approve { background: rgba(16, 185, 129, 0.1); color: #059669; }
 .fraud-flag-review { background: rgba(245, 158, 11, 0.1); color: #D97706; }
 .fraud-auto-reject { background: rgba(225, 29, 72, 0.1); color: #BE123C; }
+
+/* Shared viewport-safe page sizing */
+.app-page-scale,
+.worker-dashboard-scale,
+.worker-portal-shell {
+  min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Standard desktop-centered container */
+.layout-container {
+  width: 100%;
+  max-width: 84rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Prevent children from forcing horizontal overflow in grid/flex layouts */
+.layout-container > * {
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .layout-container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .layout-container {
+    max-width: 90rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+@media (min-width: 1440px) {
+  .layout-container {
+    max-width: 96rem;
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+}

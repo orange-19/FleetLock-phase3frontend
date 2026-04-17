@@ -418,6 +418,9 @@ export const authApi = {
 export const workerApi = {
   dashboard: async () => ({ data: adaptWorkerDashboard(unwrap(await API.get("/worker/dashboard"))) }),
   subscribe: async (data) => ({ data: unwrap(await API.post("/worker/subscribe", data)) }),
+  kycInitiate: async (data) => ({ data: unwrap(await API.post("/worker/kyc-initiate", data)) }),
+  kycVerify: async (data) => ({ data: unwrap(await API.post("/worker/kyc-verify", data)) }),
+  kycStatus: async () => ({ data: unwrap(await API.get("/worker/kyc-status")) }),
   createClaim: async (data) => {
     const raw = unwrap(await API.post("/worker/claim", data));
     return {
@@ -436,6 +439,7 @@ export const workerApi = {
 export const adminApi = {
   dashboard: async () => ({ data: adaptAdminDashboard(unwrap(await API.get("/admin/dashboard"))) }),
   workers: async () => ({ data: adaptWorkers(unwrap(await API.get("/admin/workers"))) }),
+  kycStatus: async (params = {}) => ({ data: unwrap(await API.get("/admin/kyc-status", { params })) }),
   claims: async (status) => {
     const dashboard = adaptAdminDashboard(unwrap(await API.get("/admin/dashboard")));
     const claims = status ? dashboard.recent_claims.filter((claim) => claim.status === status) : dashboard.recent_claims;
